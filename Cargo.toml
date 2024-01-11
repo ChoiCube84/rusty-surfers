@@ -2,7 +2,9 @@
 name = "rusty-surfers"
 version = "0.1.0"
 edition = "2021"
+authors = ["wldnd0804@gmail.com"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+ggez = "0.9.3"
