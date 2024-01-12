@@ -1,9 +1,17 @@
 use ggez::*;
 use ggez::input::keyboard::KeyCode;
+use ggez::conf::*;
+use std::cmp;
+
+mod character;
+use character::Character;
 
 struct State {
-    pos_x: f32,
-    pos_y: f32,
+    window_width : i32,
+    window_height : i32,
+
+    character : Character,
+
     color : usize,
 }
 
@@ -12,16 +20,17 @@ impl ggez::event::EventHandler<GameError> for State {
         const SPEED: f32 = 5.0;
 
         if ctx.keyboard.is_key_pressed(KeyCode::Right) {
-            self.pos_x += SPEED;
+            self.character.pos_x += SPEED * (0.8 + 0.2 * self.character.pos_z as f32);
         }
         if ctx.keyboard.is_key_pressed(KeyCode::Left) {
-            self.pos_x -= SPEED;
+            self.character.pos_x -= SPEED * (0.8 + 0.2 * self.character.pos_z as f32);
         }
-        if ctx.keyboard.is_key_pressed(KeyCode::Up) {
-            self.pos_y -= SPEED;
+        if ctx.keyboard.is_key_just_pressed(KeyCode::Up) {
+            self.character.pos_z = cmp::max(self.character.pos_z - 1, -1);
         }
-        if ctx.keyboard.is_key_pressed(KeyCode::Down) {
-            self.pos_y += SPEED;
+        
+        if ctx.keyboard.is_key_just_pressed(KeyCode::Down) {
+            self.character.pos_z = cmp::min(self.character.pos_z + 1, 1);
         }
 
         if ctx.keyboard.is_key_just_pressed(KeyCode::Space) {
@@ -38,8 +47,8 @@ impl ggez::event::EventHandler<GameError> for State {
         let circle = graphics::Mesh::new_circle(
             ctx,
             graphics::DrawMode::fill(),
-            mint::Point2{x: self.pos_x, y: self.pos_y},
-            50.0,
+            mint::Point2{x: self.character.pos_x, y: ((self.window_height / 2) + self.character.pos_z * 200) as f32},
+            50.0 * (0.8 + 0.2 * self.character.pos_z as f32),
             0.1,
             color_vec[self.color],
         )?;
@@ -51,13 +60,29 @@ impl ggez::event::EventHandler<GameError> for State {
 }
 
 fn main() {
-    let state = State {
-        pos_x : 0.0,
+    let window_width = 800;
+    let window_height = 600;
+
+    let cb = ggez::ContextBuilder::new("rust-surfers", "ChoiCube84")
+        .window_setup(conf::WindowSetup::default().title("Rusty Surfers"))
+        .window_mode(conf::WindowMode::default().dimensions(window_width as f32, window_height as f32));
+
+    let character = Character {
+        pos_x : (window_width / 2) as f32,
         pos_y : 0.0,
+        pos_z: 0,
+        on_the_air : false,
+    };
+
+    let state = State {
+        window_width : window_width,
+        window_height : window_height,
+        
+        character : character,
+        
         color : 0,
     };
-    
-    let cb = ggez::ContextBuilder::new("rust-surfers", "ChoiCube84");
+
     let (ctx, event_loop) = cb.build().unwrap();
 
     event::run(ctx, event_loop, state);
