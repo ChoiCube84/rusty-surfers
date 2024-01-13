@@ -1,7 +1,7 @@
 use ggez::*;
 use ggez::input::keyboard::KeyCode;
-use ggez::conf::*;
-use std::cmp;
+// use ggez::conf::*;
+// use std::cmp;
 
 mod character;
 use character::Character;
@@ -11,49 +11,73 @@ struct State {
     window_height : i32,
 
     character : Character,
-
-    color : usize,
 }
 
 impl ggez::event::EventHandler<GameError> for State {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
         const SPEED: f32 = 5.0;
 
-        if ctx.keyboard.is_key_pressed(KeyCode::Right) {
-            self.character.pos_x += SPEED * (0.8 + 0.2 * self.character.pos_z as f32);
-        }
         if ctx.keyboard.is_key_pressed(KeyCode::Left) {
-            self.character.pos_x -= SPEED * (0.8 + 0.2 * self.character.pos_z as f32);
+            self.character.move_left(SPEED);
+        }
+        if ctx.keyboard.is_key_pressed(KeyCode::Right) {
+            self.character.move_right(SPEED);
         }
         if ctx.keyboard.is_key_just_pressed(KeyCode::Up) {
-            self.character.pos_z = cmp::max(self.character.pos_z - 1, -1);
+            self.character.move_upper_lane();
         }
         
         if ctx.keyboard.is_key_just_pressed(KeyCode::Down) {
-            self.character.pos_z = cmp::min(self.character.pos_z + 1, 1);
+            self.character.move_lower_lane();
+        }
+        if ctx.keyboard.is_key_just_pressed(KeyCode::Space) {
+            self.character.jump();
         }
 
-        if ctx.keyboard.is_key_just_pressed(KeyCode::Space) {
-            self.color += 1;
-            self.color %= 4;
-        }
+        self.character.fall_by_gravity();
 
         Ok(())
     }
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
-        let color_vec = Vec::from([graphics::Color::RED, graphics::Color::YELLOW, graphics::Color::GREEN, graphics::Color::BLUE]);
         let mut canvas = graphics::Canvas::from_frame(ctx, graphics::Color::BLACK);
 
-        let circle = graphics::Mesh::new_circle(
-            ctx,
-            graphics::DrawMode::fill(),
-            mint::Point2{x: self.character.pos_x, y: ((self.window_height / 2) + self.character.pos_z * 200) as f32},
-            50.0 * (0.8 + 0.2 * self.character.pos_z as f32),
-            0.1,
-            color_vec[self.color],
+        let semi_major_axis = 50.0 * (1.0 + 0.2 * self.character.pos_z as f32);
+
+        let lane_divider1 = graphics::Mesh::new_line(
+            ctx, 
+            &[
+                mint::Point2{x: 0.0, y: ((self.window_height / 2) - 100) as f32}, 
+                mint::Point2{x: self.window_width as f32, y: ((self.window_height / 2) - 100) as f32}
+            ],
+            1.0, 
+            graphics::Color::WHITE,
         )?;
 
-        canvas.draw(&circle, graphics::DrawParam::default());
+        let lane_divider2 = graphics::Mesh::new_line(
+            ctx, 
+            &[
+                mint::Point2{x: 0.0, y: ((self.window_height / 2) + 100) as f32}, 
+                mint::Point2{x: self.window_width as f32, y: ((self.window_height / 2) + 100) as f32}
+            ],
+            1.0, 
+            graphics::Color::WHITE,
+        )?;
+
+        let surfing_board = graphics::Mesh::new_ellipse(
+            ctx,
+            graphics::DrawMode::fill(),
+            self.character.get_2d_coordinate(self.window_height),
+            semi_major_axis,
+            semi_major_axis * (3.0 / 16.0),
+            0.1,
+            graphics::Color::YELLOW,
+        )?;
+
+        canvas.draw(&lane_divider1, graphics::DrawParam::default());
+        canvas.draw(&lane_divider2, graphics::DrawParam::default());
+
+        canvas.draw(&surfing_board, graphics::DrawParam::default());
+
         canvas.finish(ctx)?;
         Ok(())
     }
@@ -67,20 +91,13 @@ fn main() {
         .window_setup(conf::WindowSetup::default().title("Rusty Surfers"))
         .window_mode(conf::WindowMode::default().dimensions(window_width as f32, window_height as f32));
 
-    let character = Character {
-        pos_x : (window_width / 2) as f32,
-        pos_y : 0.0,
-        pos_z: 0,
-        on_the_air : false,
-    };
+    let character = Character::new(window_width);
 
     let state = State {
         window_width : window_width,
         window_height : window_height,
         
         character : character,
-        
-        color : 0,
     };
 
     let (ctx, event_loop) = cb.build().unwrap();
